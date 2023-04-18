@@ -118,6 +118,7 @@ include_directories(
   include
   ${catkin_INCLUDE_DIRS}
   ${DECOMP_UTIL_INCLUDE_DIRS}
+  ${EIGEN3_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library
@@ -139,13 +140,13 @@ add_executable(robust_planner src/planner.cpp src/planner_node.cpp src/JPS.cpp)
 # )
 target_link_libraries(robust_planner
   ${catkin_LIBRARIES}
-  Eigen3::Eigen
+  #Eigen3::Eigen
 )
 
 add_executable(brs_manager src/BRSManager.cpp)
 target_link_libraries(brs_manager
   ${catkin_LIBRARIES}
-  Eigen3::Eigen
+  #Eigen3::Eigen
 )
 
 add_executable(publish_pf_pose src/publish_pf_pose.cpp)

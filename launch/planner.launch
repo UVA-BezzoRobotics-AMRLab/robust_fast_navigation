@@ -15,9 +15,9 @@
         <param name="traj_dt" value=".05" />
         <param name="failsafe_count" value="2" />
 
-        <!-- <remap from="/planner_goal" to="/move_base_simple/goal" /> -->
+        <remap from="/planner_goal" to="/move_base_simple/goal" />
         <!-- <remap from="/planner_goal" to="/gap_goal" /> -->
-        <remap from="/planner_goal" to="/final_goal" />
+        <!-- <remap from="/planner_goal" to="/final_goal" /> -->
         <remap from="/odometry/filtered" to="/gmapping/odometry" />
     </node>
 

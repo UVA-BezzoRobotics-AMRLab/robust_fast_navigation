@@ -103,21 +103,10 @@ Planner::Planner(ros::NodeHandle& nh){
   TODOS: Add mutex's to class fields to allow for multi-threading
 ***********************************************************************/
 void Planner::spin(){
-    //tf::TransformListener tfListener(ros::Duration(10));
+    tf::TransformListener tf_listener(ros::Duration(10));
 
-    // ROS_INFO("starting local costmap");
-    // local_costmap = new costmap_2d::Costmap2DROS("local_costmap", tfBuffer);
-    // local_costmap->start();
-    
-    // allow time for transforms and things to be published
-    // ros::Duration(3).sleep();
-
-    tf2_ros::Buffer tfBuffer;
-    tf2_ros::TransformListener tfListener(tfBuffer);
-
-    ROS_INFO("initializing global costmap");
-    global_costmap = new costmap_2d::Costmap2DROS("global_costmap", tfBuffer);
     ROS_INFO("starting global costmap");
+    global_costmap = new costmap_2d::Costmap2DROS("global_costmap", tf_listener);
     global_costmap->start();
     ROS_INFO("done!");
     _is_costmap_started = true;
