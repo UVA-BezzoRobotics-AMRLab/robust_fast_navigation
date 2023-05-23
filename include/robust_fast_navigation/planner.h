@@ -50,6 +50,7 @@ private:
     
     // utilities
     void pubPolys();
+    void pubCurrPoly();
     void projectIntoMap(const Eigen::Vector2d& goal);
 
     template <int D>
@@ -60,8 +61,8 @@ private:
     vec_Vec2f _obs;
 
     bool _is_init, _started_costmap, _is_goal_set, _is_teleop, _is_goal_reset,
-         _plan_once, _simplify_jps, _is_costmap_started, _map_received, 
-         _plan_in_free;
+         _plan_once, _simplify_jps, _is_costmap_started, _map_received, _is_barn, 
+         _plan_in_free, _planned;
 
     std::string _frame_str;
 
@@ -71,8 +72,9 @@ private:
     ros::Timer controlTimer, goalTimer, publishTimer;
     ros::Subscriber laserSub, odomSub, pathSub, goalSub, clickedPointSub, mapSub;
     ros::Publisher trajVizPub, wptVizPub, trajPub, trajPubNoReset, meshPub, intGoalPub,
+    
     edgePub, goalPub, paddedLaserPub, jpsPub, jpsPubFree, jpsPointsPub, currPolyPub, 
-    initPointPub;
+    initPointPub, corridorPub;
 
     costmap_2d::Costmap2DROS* local_costmap, *global_costmap;
     std::vector<Eigen::Vector2d> astarPath;

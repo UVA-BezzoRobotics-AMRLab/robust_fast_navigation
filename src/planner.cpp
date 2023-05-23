@@ -35,6 +35,7 @@ Planner::Planner(ros::NodeHandle& nh){
     nh.param("robust_planner/const_factor", _const_factor, 6.);
     nh.param("robust_planner/simplify_jps", _simplify_jps, false);
     nh.param("robust_planner/failsafe_count", _failsafe_count, 2);
+    nh.param("robust_planner/is_barn", _is_barn, false);
     nh.param("robust_planner/plan_in_free", _plan_in_free, false);
     nh.param("robust_planner/max_dist_horizon", _max_dist_horizon, 4.);
     nh.param<std::string>("robust_planner/frame", _frame_str, "map");
@@ -73,6 +74,9 @@ Planner::Planner(ros::NodeHandle& nh){
     currPolyPub = 
         nh.advertise<geometry_msgs::PoseArray>("/currPoly", 0);
 
+    corridorPub = 
+        nh.advertise<geometry_msgs::PoseArray>("/polyCorridor", 0);
+
     intGoalPub = 
         nh.advertise<geometry_msgs::PoseArray>("/intermediate_goal", 0);
 
@@ -90,6 +94,7 @@ Planner::Planner(ros::NodeHandle& nh){
     controlTimer = nh.createTimer(ros::Duration(_dt), &Planner::controlLoop, this);
 
     _is_init = false;
+    _planned = false;
     _is_goal_set = false;
 
     _map_received = false;
@@ -126,7 +131,91 @@ void Planner::spin(){
   RVIZ. When called, this function will set the _is_goal_set field to 
   true, which is required for planning to begin.
 
-  Inputs:
+  Inputs:// Due to the fact that H-representation cannot be directly visualized
+        // We first conduct vertex enumeration of them, then apply quickhull
+        // to obtain triangle meshs of polyhedra
+        Eigen::Matrix3Xd mesh(3, 0), curTris(3, 0), oldTris(3, 0);
+        for (size_t id = 0; id < hPolys.size(); id++)
+        {
+            oldTris = mesh;
+            Eigen::Matrix<double, 3, -1, Eigen::ColMajor> vPoly;
+            geo_utils::enumerateVs(expandPoly(hPolys[id],.05), vPoly);
+
+            quickhull::QuickHull<double> tinyQH;
+            const auto polyHull = tinyQH.getConvexHull(vPoly.data(), vPoly.cols(), false, true);
+            const auto &idxBuffer = polyHull.getIndexBuffer();
+            int hNum = idxBuffer.size() / 3;
+
+            curTris.resize(3, hNum * 3);
+            for (int i = 0; i < hNum * 3; i++)
+            {
+                curTris.col(i) = vPoly.col(idxBuffer[i]);
+            }
+            mesh.resize(3, oldTris.cols() + curTris.cols());
+            mesh.leftCols(oldTris.cols()) = oldTris;
+            mesh.rightCols(curTris.cols()) = curTris;
+        }
+
+        // RVIZ support tris for visualization
+        visualization_msgs::Marker meshMarker, edgeMarker;
+
+        meshMarker.id = 0;
+        meshMarker.header.stamp = ros::Time::now();
+        meshMarker.header.frame_id = "map";
+        meshMarker.pose.orientation.w = 1.00;
+        meshMarker.action = visualization_msgs::Marker::ADD;
+        meshMarker.type = visualization_msgs::Marker::TRIANGLE_LIST;
+        meshMarker.ns = "mesh";
+        
+        meshMarker.color.r = 0.675;
+        meshMarker.color.g = 0.988;
+        meshMarker.color.b = .851;
+
+        meshMarker.color.a = 0.15;
+        meshMarker.scale.x = 1.0;
+        meshMarker.scale.y = 1.0;
+        meshMarker.scale.z = 1.0;
+
+        edgeMarker = meshMarker;
+        edgeMarker.type = visualization_msgs::Marker::LINE_LIST;
+        edgeMarker.ns = "edge";
+        edgeMarker.color.r = 0.365;
+        edgeMarker.color.g = 0.851;
+        edgeMarker.color.b = 0.757;
+        edgeMarker.color.a = 1.00;
+        edgeMarker.scale.x = 0.02;
+
+        geometry_msgs::Point point;
+
+        int ptnum = mesh.cols();
+
+        for (int i = 0; i < ptnum; i++)
+        {
+            point.x = mesh(0, i);
+            point.y = mesh(1, i);
+            point.z = mesh(2, i);
+            meshMarker.points.push_back(point);
+        }
+
+        for (int i = 0; i < ptnum / 3; i++)
+        {
+            for (int j = 0; j < 3; j++)
+            {
+                point.x = mesh(0, 3 * i + j);
+                point.y = mesh(1, 3 * i + j);
+                point.z = mesh(2, 3 * i + j);
+                edgeMarker.points.push_back(point);
+                point.x = mesh(0, 3 * i + (j + 1) % 3);
+                point.y = mesh(1, 3 * i + (j + 1) % 3);
+                point.z = mesh(2, 3 * i + (j + 1) % 3);
+                edgeMarker.points.push_back(point);
+            }
+        }
+
+        meshPub.publish(meshMarker);
+        edgePub.publish(edgeMarker);
+
+        return;
     - PointStamped message
 ***********************************************************************/
 void Planner::clickedPointcb(const geometry_msgs::PointStamped::ConstPtr& msg){
@@ -251,28 +340,12 @@ void Planner::odomcb(const nav_msgs::Odometry::ConstPtr& msg){
 	_odom(1) = msg->pose.pose.position.y; 
 	_odom(2) = yaw;
 
-    // geometry_msgs::PoseStamped globalPos;
-    // if(global_costmap->getRobotPose(globalPos)){
-    //     tf::Quaternion q(
-    //         msg->pose.pose.orientation.x,
-    //         msg->pose.pose.orientation.y,
-    //         msg->pose.pose.orientation.z,
-    //         msg->pose.pose.orientation.w
-    //     );
-    //     tf::Matrix3x3 m(q);
-    //     double roll, pitch, yaw;
-    //     m.getRPY(roll, pitch, yaw);
-
-    //     _odom = Eigen::VectorXd(3);
-    //     _odom(0) = globalPos.pose.position.x;
-    //     _odom(1) = globalPos.pose.position.y;
-    //     _odom(2) = yaw;
-    // }
-
-    // _vel = Eigen::VectorXd(3);
-    // _vel(0) = msg->twist.twist.linear.x*cos(yaw);
-    // _vel(1) = msg->twist.twist.linear.x*sin(yaw);
-    // _vel(2) = 0;
+    if (_is_barn && !_is_goal_set){
+        goal = Eigen::VectorXd(2);
+        goal(0) = 10*cos(yaw);
+        goal(1) = 10*sin(yaw);
+        _is_goal_set = true;
+    }
 
     _prevOdom = _odom;
     _is_init = true;
@@ -451,8 +524,6 @@ void Planner::controlLoop(const ros::TimerEvent&){
 
     static int count = 0;
 
-    
-
     if (!_is_init || !_is_goal_set || !_is_costmap_started)
         return;
 
@@ -470,7 +541,9 @@ void Planner::controlLoop(const ros::TimerEvent&){
     global_costmap->updateMap();
 
     // costmap_2d::Costmap2D* _map = local_costmap->getCostmap();
-    
+    if (_planned)
+        return;
+        
     if (!plan())
         count++;
     else
@@ -563,7 +636,8 @@ bool Planner::plan(bool is_failsafe){
 
     JPSPlan jps;
     unsigned int sX, sY, eX, eY;
-    _map->worldToMap(initialPVA.col(0)[0], initialPVA.col(0)[1], sX, sY);
+    _map->worldToMap(_odom(0), _odom(1), sX, sY);
+    // _map->worldToMap(initialPVA.col(0)[0], initialPVA.col(0)[1], sX, sY);
     _map->worldToMap(goal(0), goal(1), eX, eY);
 
     jps.set_start(sX, sY);
@@ -587,6 +661,7 @@ bool Planner::plan(bool is_failsafe){
     //     _map->mapToWorld(jpsPath[i](0), jpsPath[i](1), x, y);
     //     jpsPath[i] = Eigen::Vector2d(x,y);
 
+    // jpsPath.insert(jpsPath.begin(), Eigen::Vector2d(_odom(0), _odom(1)));
     //     if (i > 0)
     //         cost += (jpsPath[i]-jpsPath[i-1]).norm();
     // }
@@ -725,14 +800,14 @@ bool Planner::plan(bool is_failsafe){
     magnitudeBounds(0) = 1.8;   //v_max
     magnitudeBounds(1) = .8;   //omg_max
     magnitudeBounds(2) = .8;    //theta_max
-    magnitudeBounds(3) = -1;     //thrust_min
-    magnitudeBounds(4) = .2;    //thrust_max
+    magnitudeBounds(3) = 2;     //thrust_min
+    magnitudeBounds(4) = 12;    //thrust_max
     penaltyWeights(0) = 1e4;    //pos_weight
     penaltyWeights(1) = 1e4;    //vel_weight
     penaltyWeights(2) = 1e4;    //omg_weight
     penaltyWeights(3) = 1e4;    //theta_weight
     penaltyWeights(4) = 1e5;    //thrust_weight
-    physicalParams(0) = .1;    // mass
+    physicalParams(0) = 100;    // mass
     physicalParams(1) = 9.81;   // gravity
     physicalParams(2) = 0;      // drag
     physicalParams(3) = 0;      // drag
@@ -810,7 +885,6 @@ bool Planner::plan(bool is_failsafe){
 
         double startTime = (trajInd-startInd)*_traj_dt;
 
-
         for(int i = 0; i < bTraj.points.size(); i++){
             aTraj.points.push_back(bTraj.points[i]);
             aTraj.points.back().time_from_start = ros::Duration(startTime+i*_traj_dt);
@@ -833,11 +907,13 @@ bool Planner::plan(bool is_failsafe){
     if(!_is_teleop)
         trajPub.publish(sentTraj);
 
+    ROS_INFO("visualizing");
     visualizeTraj();
+    pubCurrPoly();
 
     if (_plan_once){
         pubPolys();
-        exit(0);
+        _planned = true;
     }
 
     double totalT = (ros::Time::now() - a).toSec();
@@ -970,6 +1046,51 @@ void Planner::pubPolys(){
     wptMsgs.poses.push_back(pM);
 
     intGoalPub.publish(wptMsgs);
-    currPolyPub.publish(msg);
+    corridorPub.publish(msg);
+    
+    return;
+}
 
+void Planner::pubCurrPoly(){
+
+    geometry_msgs::PoseArray msg;
+    
+    // go backwards because we want the poly closest to end of corridor in
+    // case of intersections
+    for(int i = hPolys.size()-1; i >=0; i--){
+        Eigen::MatrixX4d poly = hPolys[i];
+
+        if (isInPoly(poly, Eigen::Vector2d(_odom(0), _odom(1)))){
+            for(int j = 0; j < poly.rows(); j++){
+                geometry_msgs::Pose p;
+                p.orientation.x = poly.row(j)[0];
+                p.orientation.y = poly.row(j)[1];
+                p.orientation.z = poly.row(j)[2];
+                p.orientation.w = poly.row(j)[3];
+                msg.poses.push_back(p);
+            }
+
+            ROS_INFO("PUBLISHING POLY");
+            currPolyPub.publish(msg);
+            break;
+        }
+    }
+
+    // costmap_2d::Costmap2D* _map = global_costmap->getCostmap();
+    // Eigen::MatrixX4d poly = corridor::genPoly(*_map, _odom(0), _odom(1), _obs);
+    // if (isInPoly(poly, Eigen::Vector2d(_odom(0), _odom(1)))){
+    //     for(int i = 0; i < poly.rows(); i++){
+    //         geometry_msgs::Pose p;
+    //         p.orientation.x = poly.row(i)[0];
+    //         p.orientation.y = poly.row(i)[1];
+    //         p.orientation.z = poly.row(i)[2];
+    //         p.orientation.w = poly.row(i)[3];
+    //         msg.poses.push_back(p);
+    //     }
+
+    //     ROS_INFO("PUBLISHING POLY");
+    //     currPolyPub.publish(msg);
+    // }
+
+    return;
 }

@@ -273,7 +273,8 @@ namespace corridor{
         {
             oldTris = mesh;
             Eigen::Matrix<double, 3, -1, Eigen::ColMajor> vPoly;
-            geo_utils::enumerateVs(expandPoly(hPolys[id],.05), vPoly);
+            // geo_utils::enumerateVs(expandPoly(hPolys[id],.05), vPoly);
+            geo_utils::enumerateVs(hPolys[id], vPoly);
 
             quickhull::QuickHull<double> tinyQH;
             const auto polyHull = tinyQH.getConvexHull(vPoly.data(), vPoly.cols(), false, true);
@@ -300,9 +301,11 @@ namespace corridor{
         meshMarker.action = visualization_msgs::Marker::ADD;
         meshMarker.type = visualization_msgs::Marker::TRIANGLE_LIST;
         meshMarker.ns = "mesh";
+        
         meshMarker.color.r = 0.675;
         meshMarker.color.g = 0.988;
         meshMarker.color.b = .851;
+
         meshMarker.color.a = 0.15;
         meshMarker.scale.x = 1.0;
         meshMarker.scale.y = 1.0;

@@ -64,11 +64,11 @@ if __name__ == "__main__":
     os.environ["JACKAL_LASER_OFFSET"] = "-0.065 0 0.01"
 
     rospack = rospkg.RosPack()
-    base_path = rospack.get_path('jackal_gazebo')
+    base_path = rospack.get_path('jackal_helper')
     world_name = "BARN/world_%d.world" %(args.world_idx)
     print(">>>>>>>>>>>>>>>>>> Loading Gazebo Simulation with %s <<<<<<<<<<<<<<<<<<" %(world_name))   
     
-    launch_file = join(base_path, 'launch', 'barn_world.launch')
+    launch_file = join(base_path, 'launch', 'gazebo_launch.launch')
     world_name = join(base_path, "worlds", world_name)
 
     gazebo_process = subprocess.Popen([
@@ -150,7 +150,7 @@ if __name__ == "__main__":
         'roslaunch',
         nav_stack_launch_file,
     ])
-    time.sleep(1)
+    time.sleep(3)
 
     planner_launch_file = join(planner_path, 'launch/planner.launch')
     planner_process = subprocess.Popen([
@@ -165,14 +165,14 @@ if __name__ == "__main__":
 
     goal_pub = rospy.Publisher("/final_goal", PoseStamped, queue_size=1, latch=True)
     mb_goal = PoseStamped()
-    mb_goal.header.frame_id = 'map'
+    mb_goal.header.frame_id = 'odom'
     mb_goal.header.stamp = rospy.Time.now()
     mb_goal.pose.position.x = GOAL_POSITION[0]
     mb_goal.pose.position.y = GOAL_POSITION[1]
     mb_goal.pose.position.z = 0
     mb_goal.pose.orientation = Quaternion(0, 0, 0, 1)
 
-    goal_pub.publish(mb_goal)
+    # goal_pub.publish(mb_goal)
 
 
     ##########################################################################################
