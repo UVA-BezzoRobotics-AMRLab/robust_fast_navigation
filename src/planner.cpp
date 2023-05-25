@@ -27,7 +27,9 @@ Planner::Planner(ros::NodeHandle& nh){
 
     // ROS Params
     nh.param("robust_planner/traj_dt", _traj_dt, .1);
+    nh.param("robust_planner/is_barn", _is_barn, false);
     nh.param("robust_planner/teleop", _is_teleop, false);
+    nh.param("robust_planner/goal_dist", _goal_dist, 10.);
     nh.param("robust_planner/lookahead", _lookahead, .15);
     nh.param("robust_planner/planner_frequency", _dt, .1);
     nh.param("robust_planner/max_velocity", _max_vel, 1.);
@@ -35,7 +37,6 @@ Planner::Planner(ros::NodeHandle& nh){
     nh.param("robust_planner/const_factor", _const_factor, 6.);
     nh.param("robust_planner/simplify_jps", _simplify_jps, false);
     nh.param("robust_planner/failsafe_count", _failsafe_count, 2);
-    nh.param("robust_planner/is_barn", _is_barn, false);
     nh.param("robust_planner/plan_in_free", _plan_in_free, false);
     nh.param("robust_planner/max_dist_horizon", _max_dist_horizon, 4.);
     nh.param<std::string>("robust_planner/frame", _frame_str, "map");
@@ -342,8 +343,8 @@ void Planner::odomcb(const nav_msgs::Odometry::ConstPtr& msg){
 
     if (_is_barn && !_is_goal_set){
         goal = Eigen::VectorXd(2);
-        goal(0) = 20*cos(yaw);
-        goal(1) = 20*sin(yaw);
+        goal(0) = _goal_dist*cos(yaw);
+        goal(1) = _goal_dist*sin(yaw);
         _is_goal_set = true;
     }
 

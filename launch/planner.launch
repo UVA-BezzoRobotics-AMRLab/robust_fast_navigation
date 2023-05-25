@@ -31,7 +31,11 @@
         <!-- How far out in distance the planner will generate a trajectory -->
         <param name="max_dist_horizon" value="4" />
 
-        <param name="is_barn" value="false" />
+
+        <!-- If this is true, then goal will be placed goal_dist away from robot -->
+        <param name="is_barn" value="true" />
+        <!-- How far in front of robot should goal be? -->
+        <param name="goal_dist" value="4" />
 
         <remap from="/planner_goal" to="/move_base_simple/goal" />
         <!-- <remap from="/planner_goal" to="/gap_goal" /> -->

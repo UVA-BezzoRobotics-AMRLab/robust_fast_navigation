@@ -86,7 +86,7 @@ private:
 
     const double JACKAL_MAX_VEL = 1.0;
     double _max_vel, _dt, _const_factor, _lookahead, _traj_dt, 
-    _prev_jps_cost, _max_dist_horizon;
+    _prev_jps_cost, _max_dist_horizon, _goal_dist;
 
     int _failsafe_count;
 
