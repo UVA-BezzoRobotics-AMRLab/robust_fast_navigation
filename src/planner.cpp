@@ -342,8 +342,8 @@ void Planner::odomcb(const nav_msgs::Odometry::ConstPtr& msg){
 
     if (_is_barn && !_is_goal_set){
         goal = Eigen::VectorXd(2);
-        goal(0) = 10*cos(yaw);
-        goal(1) = 10*sin(yaw);
+        goal(0) = 20*cos(yaw);
+        goal(1) = 20*sin(yaw);
         _is_goal_set = true;
     }
 
@@ -840,7 +840,7 @@ bool Planner::plan(bool is_failsafe){
         return false;
     }
 
-    if (newTraj.getMaxVelRate() > _const_factor){
+    if (newTraj.getMaxVelRate() > 1.5*_const_factor){
         ROS_ERROR("new trajectory was way too fast (%.2f m/s)!", newTraj.getMaxVelRate());
         return false;
     }

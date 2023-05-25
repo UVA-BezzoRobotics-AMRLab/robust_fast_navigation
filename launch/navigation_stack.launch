@@ -23,6 +23,7 @@
 
     <!-- <node name="gmapping_pose_pub" pkg="robust_fast_navigation" type="getGmappingPose.py" output="screen" /> -->
     <node name="publish_pf_pose" pkg="robust_fast_navigation" type="publish_pf_pose" output="screen" />
+    <node name="pot_field" pkg="robust_fast_navigation" type="potential_field.py" output="screen" />
     
     <!-- MPC Tracking -->
     <include file="$(find mpc_trajectory_tracking)/launch/jackal_mpc_track.launch" />

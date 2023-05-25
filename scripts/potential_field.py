@@ -20,13 +20,13 @@ class potential_field:
     def __init__(self):
         rospy.init_node("potential_field")
 
-        laser_topic = rospy.get_param("~laser_topic", "/front/scan")
+        laser_topic = rospy.get_param("~laser_topic", "/scan")
         potential_field_topic = rospy.get_param("~potential_field_topic", "potential_field_sum")
 
         self.sample_rate = rospy.get_param("~sample_rate", 30)
 
-        self.min_angle = rospy.get_param("~min_angle", -np.pi)
-        self.max_angle = rospy.get_param("~max_angle", np.pi)
+        self.min_angle = rospy.get_param("~min_angle", -np.pi/2)
+        self.max_angle = rospy.get_param("~max_angle", np.pi/2)
         self.side_obstacle_force = rospy.get_param("~side_obstacle_force", 5.0)
         self.front_obstacle_force = rospy.get_param("~front_obstacle_force", 5.0)
 
@@ -67,7 +67,7 @@ class potential_field:
         if self.laser == None or self.odom == None:
             return
 
-        Q = .7
+        Q = 1
         laser_data = self.laser
         ranges = laser_data.ranges
         angle = laser_data.angle_min
@@ -112,9 +112,11 @@ class potential_field:
 
             msg = Twist()
             msg.linear.x = self.cmd.linear.x
-            msg.angular.z = np.clip(self.cmd.angular.z 
-                                    + .15 * (math.atan2(vector_sum[1], vector_sum[0])-yaw_r),
-                                    -np.pi, np.pi)
+            correction = .15 * (math.atan2(vector_sum[1], vector_sum[0])-yaw_r)
+            rospy.logerr("correction is {:.3f}".format(correction))
+
+            msg.angular.z = np.clip(self.cmd.angular.z + correction, -np.pi, np.pi)
+
             self.cmd_pub.publish(msg)
 
 #------------------------------------------
